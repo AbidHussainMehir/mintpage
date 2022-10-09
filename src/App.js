@@ -2,9 +2,7 @@ import Web3 from "web3";
 import React, { useState, useEffect } from "react";
 import {
   ABI,
-  CONTRACT_ADDRESS,
-  APPROVE_ABI,
-  APPROVE_ADDRESS,
+  CONTRACT_ADDRESS
 } from "./constants/data";
 import { ReactComponent as Setting } from "./assets/images/setting.svg";
 import { ReactComponent as ArrowDown } from "./assets/images/arrow-down.svg";
@@ -22,11 +20,10 @@ function App() {
   const [OT, setOT] = useState(0);
   const [YT, setYT] = useState(0);
   const [usdc, setUsdc] = useState(0);
-  const date = [ 1672272000];
-  const [currentDate, setCurrentDate] = useState(null);
-  const convertNow = async () => {
-    pendleContract()
-      .methods.usdcToPendleOTYT(usdc, date[currentDate].toString())
+
+  const mint = async () => {
+    hexContract()
+      .methods.mint(usdc)
       .send({
         from: account,
       })
@@ -49,7 +46,7 @@ function App() {
   };
 
   const getApproval = async () => {
-    await erc20Contract()
+    await hexContract()
       .methods.approve(
         CONTRACT_ADDRESS,
         (Math.pow(10, decimals) * usdc).toString()
@@ -61,7 +58,7 @@ function App() {
         });
       })
       .on("receipt", async (receipt) => {
-        checkAllowance();
+        mint();
         toast.success("USDC spend approval successful", {
           position: toast.POSITION.TOP_RIGHT,
         });
@@ -73,48 +70,10 @@ function App() {
         console.log("error", error);
       });
   };
-  const usdcToPendleOTYT = async () => {
-    accounts();
-    checkAllowance();
-    console.log(currentDate)
-if(currentDate===null){
-  toast.error("Select Date from Dropdown", {
-    position: toast.POSITION.TOP_RIGHT,
-  });
+ 
 
-}
-   else if (account === null) {
-      toast.error("Whoops..., Metamask is not connected.", {
-        position: toast.POSITION.TOP_RIGHT,
-      });
-      return;
-    }
-    if (usdc < 1) {
-      toast.error("A minimum of 1 USDC is required for the swap!", {
-        position: toast.POSITION.TOP_RIGHT,
-      });
-    } else {
-      try {
-        if (allowance >= Math.pow(10, decimals) * usdc) {
-          await convertNow();
-        } else {
-          await getApproval();
-          await convertNow();
-        }
-      } catch (e) {
-        toast.error("Something went wrong", {
-          position: toast.POSITION.TOP_RIGHT,
-        });
-        console.log("error rejection", e);
-      }
-    }
-  };
-
-  const erc20Contract = () => {
-    return new window.web3.eth.Contract(APPROVE_ABI, APPROVE_ADDRESS);
-  };
-
-  const pendleContract = () => {
+ 
+  const hexContract = () => {
     return new window.web3.eth.Contract(ABI, CONTRACT_ADDRESS);
   };
 
@@ -139,18 +98,6 @@ if(currentDate===null){
     return accounts;
   };
 
-  const checkAllowance = async () => {
-    const _accounts = await accounts();
-    try {
-      const _allowance = await erc20Contract()
-        .methods.allowance(_accounts[0], CONTRACT_ADDRESS)
-        .call();
-      setAllowance(_allowance);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
   const metamask = async () => {
     let isConnected = false;
 
@@ -168,15 +115,8 @@ if(currentDate===null){
 
         let _accounts = await accounts();
 
-        const decimal = await erc20Contract().methods.decimals().call();
-
-        setDecimals(decimal);
-
-        checkAllowance();
-
         window.ethereum.on("accountsChanged", async (account) => {
           setAccount(account);
-          checkAllowance();
         });
       }
     } catch (error) {
@@ -187,35 +127,9 @@ if(currentDate===null){
   const getCommision = async (e) => {
     setUsdc(e.target.value);
 
-    if (e.target.value == 0) {
-      setOT(0);
-      setYT(0);
-      return;
-    }
-
-    if (e.target.value > 0 && account !== null) {
-      let _amount = Math.pow(10, decimals) * e.target.value;
-      console.log(_amount);
-      try {
-        let v = await pendleContract().methods.commissionAmount(_amount).call();
-        let OTYTValue = (
-          Math.pow(10, -decimals) *
-          (Math.pow(10, decimals) * e.target.value - v)
-        ).toFixed(3);
-        setOT(OTYTValue);
-        setYT(OTYTValue);
-      } catch (e) {
-        console.log("Commission calculation error", e);
-      }
-    }
+   
   };
-  const getFormatedDate = (date) => {
-    const event = new Date(date * 1000);
-    let month = event.toLocaleDateString(undefined, { month: "short" });
-    let year = event.toLocaleDateString(undefined, { year: "numeric" });
-    let day = event.toLocaleDateString(undefined, { day: "numeric" });
-    return `${day} ${month} ${year}`;
-  };
+ 
   return (
     <div className="w-100 overflow-hidden " style={{ background: "#FEFEFF" }}>
       <ToastContainer />
@@ -224,13 +138,14 @@ if(currentDate===null){
           <ul className="navbar-nav me-auto ms-auto d-flex align-items-end">
             <li className="nav-item">
               <a className="nav-link header-link" href="#">
-                Swap
+              Mint
               </a>
             </li>
             <li className="nav-item">
-              <a className=" nav-link header-link-unselected" href="https://github.com/Pehon1/pendle-swapper" target="_blank">
-                {" "}
-                Github
+              <a className=" nav-link header-link-unselected"
+              //  href="https://github.com/Pehon1/pendle-swapper" 
+               target="_blank">
+                Redeem
               </a>
             </li>
           </ul>
@@ -251,7 +166,7 @@ if(currentDate===null){
               <div className="row">
                 <div className="col-6 me-auto">
                   <span>
-                    <b>SWAP</b>
+                    <b>Mint</b>
                   </span>
                 </div>
                 {/* <div className="col-6 ms-auto d-flex px-4 justify-content-end">
@@ -262,39 +177,19 @@ if(currentDate===null){
               </div>
               <div className="row swap-heading">
                 <div className="col-12">
-                  <span> Convert USDC to Pendle aUSDC YT and OT</span>
+                  <span> YalaHEX</span>
                 </div>
               </div>
-              <div className="row date-container d-flex  align-items-center mb-3 g-0">
-                <div className="col date-container-text">
-                  <span>Expiry</span>
-                </div>
-                <div className="col date-picker d-flex justify-content-end">
-                  <Form.Select
-                    variant="none"
-                    onChange={(e) => setCurrentDate(e.target.value)}
-                    value={currentDate}
-
-                  >
-                   { console.log(currentDate)}
-                    <option className="option" value={null}>{"Select Date"}</option>
-                    {date.map((item, index) => {
-                      return (
-                        <option className="option" value={index}>{getFormatedDate(item)}</option>
-                      );
-                    })}
-                  </Form.Select>
-                </div>
-              </div>
+            
 
               <div className="stake-container bg-light">
                 <div className="row">
                   <div className="col-12">
-                    <span>From</span>
+                    <span>Amount</span>
                   </div>
                 </div>
                 <div className="row">
-                  <div className="col-8 d-flex align-items-center">
+                  <div className="col-12 py-3 d-flex align-items-center">
                     <input
                       type="number"
                       style={{ width: "100%" }}
@@ -306,84 +201,17 @@ if(currentDate===null){
                       }}
                     />
                   </div>
-                  <div className="col-4 d-flex justify-content-end">
-                    <div className="btn-group">
-                      <Dropdown>
-                        <Dropdown.Toggle variant="none" id="dropdown-basic">
-                          USDC
-                        </Dropdown.Toggle>
-
-                        <Dropdown.Menu>
-                          <Dropdown.Item href="#/action-1">USDC</Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
-                    </div>
-                  </div>
+                 
                 </div>
               </div>
 
-              <div className="row">
-                <div className="col">
-                  <span className="d-flex justify-content-center pt-2">
-                    <ArrowDown />
-                  </span>
-                </div>
-              </div>
-
-              <div className="row pt-3 d-flex  justify-content-center g-0">
-                <div className="col-sm-5 col-12 stake-container-2 bg-light">
-                  <div className="row m-1">
-                    <div className="col-12 px-0">
-                      <span>To</span>
-                    </div>
-                  </div>
-                  <div className="row m-1">
-                    <div className="col-9 px-0">
-                      <input
-                        type="number"
-                        id="quantity"
-                        name="quantity"
-                        value={YT}
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                    <div className="col-3 px-0 d-flex justify-content-end align-items-center">
-                      <span>YT</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-sm-2 col-12 d-flex justify-content-center align-items-center">
-                  <span>+</span>
-                </div>
-                <div className="col-sm-5 col-12 stake-container-2 bg-light">
-                  <div className="row m-1">
-                    <div className="col-12 px-0">
-                      <span>To</span>
-                    </div>
-                  </div>
-                  <div className="row m-1">
-                    <div className="col-9 px-0">
-                      <input
-                        type="number"
-                        id="quantity"
-                        name="quantity"
-                        style={{ width: "100%" }}
-                        value={OT}
-                      />
-                    </div>
-                    <div className="col-3 px-0 d-flex justify-content-end align-items-center">
-                      <span>OT</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
               <div className="row">
                 <div className="col-12">
                   {account ? (
                     <button
                       className="card-connect-btn"
                       onClick={
-                        allowance >= usdc ? usdcToPendleOTYT : getApproval
+                       getApproval
                       }
                     >
                       {allowance >= usdc ? "Swap" : "Approve"}
